@@ -1,0 +1,590 @@
+"""
+==============================================
+Healthcare Smart Calculator - GUI Version
+Week 1 Professional Mini Project (GUI Edition)
+==============================================
+Concepts: Variables, Data Types, Functions,
+          if-else, Loops, Try-Except
+
+Author: Asad Ali
+Project: Healthcare AI Informatics Specialist - Week 1
+
+Run with: python healthcare_smart_calculator_gui.py
+(No external libraries needed - 100% offline, uses only Tkinter)
+"""
+
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+import webbrowser
+import urllib.parse
+from datetime import date
+
+
+# =====================================================
+# COLOR THEME (Teal / Coral - consistent professional look)
+# =====================================================
+TEAL = "#0d9488"
+TEAL_DARK = "#0f766e"
+CORAL = "#f97362"
+CORAL_DARK = "#ea5a47"
+BG = "#f4f7f7"
+CARD_BG = "#ffffff"
+TEXT_DARK = "#1f2937"
+TEXT_MUTED = "#6b7280"
+
+
+# =====================================================
+# MEDICINE PRICE REFERENCE LIST (approx. PKR, editable)
+# NOTE: This is a local offline reference list, NOT a live
+# internet price feed. Prices vary by pharmacy/city and change
+# over time. Use the "Check Live Price Online" button next to
+# the bill form to see the real, current price on Dawaai.pk.
+# =====================================================
+MEDICINE_PRICES = {
+    # Pain / Fever
+    "Panadol (500mg) - 10 tab": 25.0,
+    "Panadol Extra (500mg) - 10 tab": 35.0,
+    "Brufen (400mg) - 10 tab": 45.0,
+    "Disprin - 10 tab": 20.0,
+    "Ponstan (500mg) - 10 tab": 110.0,
+    "Voltral (50mg) - 10 tab": 85.0,
+    "Arinac Forte - 10 tab": 95.0,
+    "Calpol Syrup 60ml": 120.0,
+
+    # Antibiotics
+    "Augmentin (625mg) - 10 tab": 550.0,
+    "Amoxil (500mg) - 10 tab": 180.0,
+    "Flagyl (400mg) - 10 tab": 90.0,
+    "Azomax (500mg) - 3 tab": 210.0,
+    "Ospamox (500mg) - 10 tab": 160.0,
+    "Klaricid (500mg) - 10 tab": 480.0,
+
+    # Antacid / GI
+    "Risek (20mg) - 14 tab": 260.0,
+    "Nexum (40mg) - 14 tab": 420.0,
+    "Gaviscon Syrup 200ml": 340.0,
+    "Buscopan (10mg) - 10 tab": 90.0,
+    "Motilium (10mg) - 10 tab": 100.0,
+    "Eno Sachet": 15.0,
+
+    # Allergy / Cold / Cough
+    "Cetrizine (10mg) - 10 tab": 35.0,
+    "Claritin (10mg) - 10 tab": 150.0,
+    "Tixylix Syrup 60ml": 175.0,
+    "Decolgen Tablet - 10 tab": 40.0,
+    "Actifed Syrup 60ml": 130.0,
+
+    # Vitamins / Supplements
+    "Vitamin C (1000mg) - 10 tab": 150.0,
+    "Surbex-Z - 10 tab": 210.0,
+    "Calcimax Syrup 120ml": 220.0,
+    "Neurobion Forte - 10 tab": 145.0,
+    "Fefol Capsule - 10 cap": 95.0,
+
+    # Diabetes / BP / Chronic
+    "Glucophage (500mg) - 10 tab": 55.0,
+    "Amaryl (2mg) - 10 tab": 210.0,
+    "Concor (5mg) - 10 tab": 190.0,
+    "Norvasc (5mg) - 10 tab": 175.0,
+    "Lipitor (10mg) - 10 tab": 350.0,
+
+    # Others / First Aid
+    "ORS Sachet": 25.0,
+    "Betadine Solution 30ml": 145.0,
+    "Disprol Suspension 60ml": 90.0,
+    "Rigix Cough Syrup 100ml": 160.0,
+    "Zincate Syrup 60ml": 110.0,
+}
+
+
+# =====================================================
+# MAIN APPLICATION CLASS
+# =====================================================
+class HealthcareSmartCalculator(tk.Tk):
+
+    def __init__(self):
+        super().__init__()
+
+        self.title("Healthcare Smart Calculator")
+        self.geometry("680x640")
+        self.resizable(False, False)
+        self.configure(bg=BG)
+
+        # -------- Patient data (replaces old global variables) --------
+        self.patient = {
+            "name": "", "age": 0, "gender": "",
+            "weight": 0.0, "height": 0.0, "blood_group": ""
+        }
+
+        self.build_header()
+        self.build_tabs()
+
+    # =================================================
+    # HEADER
+    # =================================================
+    def build_header(self):
+        header = tk.Frame(self, bg=TEAL, height=70)
+        header.pack(fill="x")
+
+        tk.Label(header, text="🩺 Healthcare Smart Calculator", bg=TEAL, fg="white",
+                 font=("Arial", 16, "bold")).pack(side="left", padx=20, pady=15)
+
+        tk.Label(header, text="Patient Tools & Health Utilities", bg=TEAL, fg="#d1fae5",
+                 font=("Arial", 9)).pack(side="left", pady=15)
+
+    # =================================================
+    # TABS (Notebook)
+    # =================================================
+    def build_tabs(self):
+        style = ttk.Style(self)
+        style.theme_use("default")
+        style.configure("TNotebook.Tab", padding=[12, 8], font=("Arial", 9, "bold"))
+        style.configure("TNotebook", background=BG, borderwidth=0)
+
+        notebook = ttk.Notebook(self)
+        notebook.pack(expand=True, fill="both", padx=10, pady=10)
+
+        self.tab_patient = tk.Frame(notebook, bg=CARD_BG)
+        self.tab_bmi = tk.Frame(notebook, bg=CARD_BG)
+        self.tab_age = tk.Frame(notebook, bg=CARD_BG)
+        self.tab_category = tk.Frame(notebook, bg=CARD_BG)
+        self.tab_temp = tk.Frame(notebook, bg=CARD_BG)
+        self.tab_dose = tk.Frame(notebook, bg=CARD_BG)
+        self.tab_bill = tk.Frame(notebook, bg=CARD_BG)
+
+        notebook.add(self.tab_patient, text="👤 Patient Profile")
+        notebook.add(self.tab_bmi, text="⚖️ BMI Calculator")
+        notebook.add(self.tab_age, text="🎂 Age Checker")
+        notebook.add(self.tab_category, text="🏥 Patient Category")
+        notebook.add(self.tab_temp, text="🌡️ Temp Converter")
+        notebook.add(self.tab_dose, text="💊 Medicine Dose")
+        notebook.add(self.tab_bill, text="🧾 Medicine Bill")
+
+        self.build_patient_tab()
+        self.build_bmi_tab()
+        self.build_age_tab()
+        self.build_category_tab()
+        self.build_temp_tab()
+        self.build_dose_tab()
+        self.build_bill_tab()
+
+    # =================================================
+    # Small helper to build a labeled entry field
+    # =================================================
+    def labeled_entry(self, parent, label_text):
+        tk.Label(parent, text=label_text, bg=CARD_BG, fg=TEXT_DARK,
+                  font=("Arial", 9, "bold")).pack(anchor="w", padx=25, pady=(10, 2))
+        entry = ttk.Entry(parent, width=35, font=("Arial", 10))
+        entry.pack(padx=25)
+        return entry
+
+    def section_title(self, parent, text):
+        tk.Label(parent, text=text, bg=CARD_BG, fg=TEAL_DARK,
+                  font=("Arial", 13, "bold")).pack(anchor="w", padx=20, pady=(18, 0))
+
+    def styled_button(self, parent, text, command, color=TEAL, hover=TEAL_DARK):
+        btn = tk.Button(parent, text=text, command=command, bg=color, fg="white",
+                         font=("Arial", 10, "bold"), relief="flat", padx=16, pady=8,
+                         activebackground=hover, activeforeground="white", cursor="hand2")
+        return btn
+
+    # Checks whether a patient has been added yet; warns user if not.
+    def patient_exists(self):
+        if self.patient["name"] == "":
+            messagebox.showwarning("No Patient", "Pehle 'Patient Profile' tab se patient add karein.")
+            return False
+        return True
+
+    # =====================================================
+    # TAB 1: Patient Profile (Add + Display combined)
+    # =====================================================
+    def build_patient_tab(self):
+        frame = self.tab_patient
+        self.section_title(frame, "Add / Update Patient")
+
+        self.entry_name = self.labeled_entry(frame, "Full Name")
+
+        tk.Label(frame, text="Age", bg=CARD_BG, fg=TEXT_DARK,
+                  font=("Arial", 9, "bold")).pack(anchor="w", padx=25, pady=(10, 2))
+        self.entry_age = ttk.Entry(frame, width=35, font=("Arial", 10))
+        self.entry_age.pack(padx=25)
+
+        tk.Label(frame, text="Gender", bg=CARD_BG, fg=TEXT_DARK,
+                  font=("Arial", 9, "bold")).pack(anchor="w", padx=25, pady=(10, 2))
+        self.gender_var = tk.StringVar(value="Male")
+        gender_box = ttk.Combobox(frame, textvariable=self.gender_var, width=32,
+                                    values=["Male", "Female", "Other"], state="readonly")
+        gender_box.pack(padx=25)
+
+        self.entry_weight = self.labeled_entry(frame, "Weight (kg)")
+        self.entry_height = self.labeled_entry(frame, "Height (m, e.g. 1.70)")
+        self.entry_blood = self.labeled_entry(frame, "Blood Group (e.g. O+)")
+
+        btn_row = tk.Frame(frame, bg=CARD_BG)
+        btn_row.pack(pady=15)
+        self.styled_button(btn_row, "Save Patient", self.add_patient).pack(side="left", padx=5)
+        self.styled_button(btn_row, "Clear Form", self.clear_patient_form,
+                            color="#94a3b8", hover="#64748b").pack(side="left", padx=5)
+
+        self.patient_display = tk.Label(frame, text="No patient added yet.", bg="#f0fdfa",
+                                          fg=TEXT_MUTED, font=("Arial", 9), justify="left",
+                                          anchor="w", padx=15, pady=10)
+        self.patient_display.pack(fill="x", padx=25, pady=(5, 15))
+
+    def add_patient(self):
+        try:
+            name = self.entry_name.get().strip()
+            age = int(self.entry_age.get())
+            weight = float(self.entry_weight.get())
+            height = float(self.entry_height.get())
+            blood = self.entry_blood.get().strip()
+            gender = self.gender_var.get()
+
+            if name == "":
+                messagebox.showerror("Missing Info", "Patient ka naam likhein.")
+                return
+            if age <= 0 or weight <= 0 or height <= 0:
+                messagebox.showerror("Invalid Input", "Age, weight aur height 0 se zyada honi chahiye.")
+                return
+
+            self.patient = {
+                "name": name, "age": age, "gender": gender,
+                "weight": weight, "height": height, "blood_group": blood
+            }
+
+            self.update_patient_display()
+            messagebox.showinfo("Success", "✅ Patient Added Successfully!")
+
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Age, Weight aur Height sirf numbers honi chahiye.")
+
+    def update_patient_display(self):
+        p = self.patient
+        info = (f"Name        : {p['name']}\n"
+                f"Age         : {p['age']}\n"
+                f"Gender      : {p['gender']}\n"
+                f"Weight      : {p['weight']} kg\n"
+                f"Height      : {p['height']} m\n"
+                f"Blood Group : {p['blood_group']}")
+        self.patient_display.config(text=info, fg=TEXT_DARK)
+
+    def clear_patient_form(self):
+        self.entry_name.delete(0, tk.END)
+        self.entry_age.delete(0, tk.END)
+        self.entry_weight.delete(0, tk.END)
+        self.entry_height.delete(0, tk.END)
+        self.entry_blood.delete(0, tk.END)
+        self.gender_var.set("Male")
+
+    # =====================================================
+    # TAB 2: BMI Calculator
+    # =====================================================
+    def build_bmi_tab(self):
+        frame = self.tab_bmi
+        self.section_title(frame, "BMI Calculator")
+        tk.Label(frame, text="Uses weight & height from the current patient profile.",
+                  bg=CARD_BG, fg=TEXT_MUTED, font=("Arial", 9)).pack(anchor="w", padx=20, pady=(0, 10))
+
+        self.styled_button(frame, "Calculate BMI", self.calculate_bmi).pack(padx=20, pady=10, anchor="w")
+
+        self.bmi_result = tk.Label(frame, text="", bg=CARD_BG, font=("Arial", 12, "bold"))
+        self.bmi_result.pack(anchor="w", padx=20, pady=10)
+
+    def calculate_bmi(self):
+        if not self.patient_exists():
+            return
+        p = self.patient
+        bmi = round(p["weight"] / (p["height"] ** 2), 2)
+
+        if bmi < 18.5:
+            category, color = "Underweight", CORAL_DARK
+        elif bmi < 25:
+            category, color = "Normal", TEAL_DARK
+        elif bmi < 30:
+            category, color = "Overweight", "#d97706"
+        else:
+            category, color = "Obese", "#dc2626"
+
+        self.bmi_result.config(text=f"BMI: {bmi}   |   Category: {category}", fg=color)
+
+    # =====================================================
+    # TAB 3: Age Checker
+    # =====================================================
+    def build_age_tab(self):
+        frame = self.tab_age
+        self.section_title(frame, "Age Checker")
+        tk.Label(frame, text="Uses age from the current patient profile.",
+                  bg=CARD_BG, fg=TEXT_MUTED, font=("Arial", 9)).pack(anchor="w", padx=20, pady=(0, 10))
+
+        self.styled_button(frame, "Check Age Group", self.check_age).pack(padx=20, pady=10, anchor="w")
+
+        self.age_result = tk.Label(frame, text="", bg=CARD_BG, font=("Arial", 12, "bold"))
+        self.age_result.pack(anchor="w", padx=20, pady=10)
+
+    def check_age(self):
+        if not self.patient_exists():
+            return
+        age = self.patient["age"]
+
+        if age < 13:
+            group = "Child"
+        elif age < 20:
+            group = "Teenager"
+        elif age < 60:
+            group = "Adult"
+        else:
+            group = "Senior Citizen"
+
+        self.age_result.config(text=f"Age Group: {group}", fg=TEAL_DARK)
+
+    # =====================================================
+    # TAB 4: Patient Category
+    # =====================================================
+    def build_category_tab(self):
+        frame = self.tab_category
+        self.section_title(frame, "Patient Category")
+        tk.Label(frame, text="Classifies patient as Pediatric / General / Geriatric.",
+                  bg=CARD_BG, fg=TEXT_MUTED, font=("Arial", 9)).pack(anchor="w", padx=20, pady=(0, 10))
+
+        self.styled_button(frame, "Check Category", self.check_category).pack(padx=20, pady=10, anchor="w")
+
+        self.category_result = tk.Label(frame, text="", bg=CARD_BG, font=("Arial", 12, "bold"))
+        self.category_result.pack(anchor="w", padx=20, pady=10)
+
+    def check_category(self):
+        if not self.patient_exists():
+            return
+        age = self.patient["age"]
+
+        if age < 18:
+            category = "Pediatric"
+        elif age <= 60:
+            category = "General Patient"
+        else:
+            category = "Geriatric"
+
+        self.category_result.config(text=f"Patient Category: {category}", fg=TEAL_DARK)
+
+    # =====================================================
+    # TAB 5: Temperature Converter (independent feature)
+    # =====================================================
+    def build_temp_tab(self):
+        frame = self.tab_temp
+        self.section_title(frame, "Temperature Converter")
+
+        self.entry_celsius = self.labeled_entry(frame, "Temperature in Celsius")
+
+        self.styled_button(frame, "Convert to Fahrenheit", self.convert_temp).pack(padx=25, pady=12, anchor="w")
+
+        self.temp_result = tk.Label(frame, text="", bg=CARD_BG, font=("Arial", 12, "bold"))
+        self.temp_result.pack(anchor="w", padx=25, pady=5)
+
+    def convert_temp(self):
+        try:
+            celsius = float(self.entry_celsius.get())
+            fahrenheit = round((celsius * 9 / 5) + 32, 2)
+            self.temp_result.config(text=f"{celsius}°C = {fahrenheit}°F", fg=TEAL_DARK)
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Sirf number likhein (e.g. 37.5).")
+
+    # =====================================================
+    # TAB 6: Medicine Dose Calculator
+    # =====================================================
+    def build_dose_tab(self):
+        frame = self.tab_dose
+        self.section_title(frame, "Medicine Dose Calculator")
+        tk.Label(frame, text="Recommended dose = weight (kg) × 10 mg.\nUses weight from the current patient profile.",
+                  bg=CARD_BG, fg=TEXT_MUTED, font=("Arial", 9), justify="left").pack(anchor="w", padx=20, pady=(0, 10))
+
+        self.styled_button(frame, "Calculate Dose", self.calculate_dose).pack(padx=20, pady=10, anchor="w")
+
+        self.dose_result = tk.Label(frame, text="", bg=CARD_BG, font=("Arial", 12, "bold"))
+        self.dose_result.pack(anchor="w", padx=20, pady=10)
+
+    def calculate_dose(self):
+        if not self.patient_exists():
+            return
+        dose = self.patient["weight"] * 10
+        self.dose_result.config(text=f"Recommended Dose: {dose} mg", fg=TEAL_DARK)
+
+    # =====================================================
+    # TAB 7: Medicine Bill (enhanced: itemized bill + total)
+    # =====================================================
+    def build_bill_tab(self):
+        frame = self.tab_bill
+        self.section_title(frame, "Medicine Bill")
+
+        tk.Label(frame, text="Price auto-fills from the local reference list (editable). "
+                              "Click 'Check Live Price' to see the real current price in your browser.",
+                  bg=CARD_BG, fg=TEXT_MUTED, font=("Arial", 8), wraplength=560,
+                  justify="left").pack(anchor="w", padx=20, pady=(0, 8))
+
+        row = tk.Frame(frame, bg=CARD_BG)
+        row.pack(padx=20, pady=(5, 5), fill="x")
+
+        tk.Label(row, text="Medicine", bg=CARD_BG, font=("Arial", 9, "bold")).grid(row=0, column=0, sticky="w")
+        tk.Label(row, text="Qty", bg=CARD_BG, font=("Arial", 9, "bold")).grid(row=0, column=1, sticky="w", padx=10)
+        tk.Label(row, text="Price/Unit (Rs.)", bg=CARD_BG, font=("Arial", 9, "bold")).grid(row=0, column=2, sticky="w")
+
+        # Medicine name: editable combobox (pick from list OR type a custom name)
+        self.med_name_var = tk.StringVar()
+        self.entry_med_name = ttk.Combobox(row, textvariable=self.med_name_var, width=26,
+                                             values=sorted(MEDICINE_PRICES.keys()))
+        self.entry_med_name.grid(row=1, column=0, sticky="w")
+        self.entry_med_name.bind("<<ComboboxSelected>>", self.autofill_price)
+        self.entry_med_name.bind("<FocusOut>", self.autofill_price)
+
+        # Quantity: spinbox with built-in +/- increment buttons (starts at 1)
+        self.qty_var = tk.IntVar(value=1)
+        self.entry_med_qty = ttk.Spinbox(row, from_=1, to=999, increment=1,
+                                           textvariable=self.qty_var, width=6)
+        self.entry_med_qty.grid(row=1, column=1, sticky="w", padx=10)
+
+        # Price: auto-filled when a known medicine is picked, still editable
+        self.price_var = tk.StringVar()
+        self.entry_med_price = ttk.Entry(row, textvariable=self.price_var, width=10)
+        self.entry_med_price.grid(row=1, column=2, sticky="w")
+
+        btn_row = tk.Frame(frame, bg=CARD_BG)
+        btn_row.pack(padx=20, pady=10, anchor="w")
+        self.styled_button(btn_row, "➕ Add to Bill", self.add_bill_item).pack(side="left", padx=(0, 8))
+        self.styled_button(btn_row, "🌐 Check Live Price", self.check_online_price,
+                            color=CORAL, hover=CORAL_DARK).pack(side="left")
+
+        # Bill items table
+        columns = ("medicine", "qty", "price", "total")
+        self.bill_table = ttk.Treeview(frame, columns=columns, show="headings", height=6)
+        for col, label in zip(columns, ["Medicine", "Qty", "Price", "Total"]):
+            self.bill_table.heading(col, text=label)
+            self.bill_table.column(col, width=100)
+        self.bill_table.pack(padx=20, pady=5, fill="x")
+
+        bottom_row = tk.Frame(frame, bg=CARD_BG)
+        bottom_row.pack(padx=20, pady=10, fill="x")
+
+        self.styled_button(bottom_row, "Remove Selected", self.remove_bill_item,
+                            color="#94a3b8", hover="#64748b").pack(side="left", padx=(0, 6))
+        self.styled_button(bottom_row, "Clear Bill", self.clear_bill,
+                            color="#94a3b8", hover="#64748b").pack(side="left", padx=(0, 6))
+        self.styled_button(bottom_row, "Export Receipt (.txt)", self.export_bill,
+                            color=TEAL_DARK, hover=TEAL).pack(side="left")
+
+        self.bill_total_label = tk.Label(bottom_row, text="Total Bill: Rs. 0", bg=CARD_BG,
+                                           fg=CORAL_DARK, font=("Arial", 12, "bold"))
+        self.bill_total_label.pack(side="right")
+
+    def autofill_price(self, event=None):
+        """When a known medicine is picked from the list, auto-fill its reference price."""
+        name = self.med_name_var.get().strip()
+        if name in MEDICINE_PRICES:
+            self.price_var.set(str(MEDICINE_PRICES[name]))
+
+    def check_online_price(self):
+        """Open the default web browser with a live search for this medicine's real price.
+        This always works (uses the real website), unlike scraping which can break."""
+        name = self.med_name_var.get().strip()
+        if name == "":
+            messagebox.showwarning("No Medicine", "Pehle medicine ka naam likhein ya select karein.")
+            return
+
+        search_term = urllib.parse.quote(name)
+        url = f"https://dawaai.pk/catalogsearch/result/?q={search_term}"
+        webbrowser.open(url)
+
+    def add_bill_item(self):
+        try:
+            name = self.med_name_var.get().strip()
+            qty = int(self.qty_var.get())
+            price = float(self.price_var.get())
+
+            if name == "" or qty <= 0 or price <= 0:
+                messagebox.showerror("Invalid Input", "Sab fields sahi bharein.")
+                return
+
+            total = qty * price
+            self.bill_table.insert("", "end", values=(name, qty, price, total))
+
+            # Reset fields for the next item (quantity back to 1)
+            self.med_name_var.set("")
+            self.qty_var.set(1)
+            self.price_var.set("")
+
+            self.update_bill_total()
+
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Quantity aur Price sirf numbers honi chahiye.")
+
+    def update_bill_total(self):
+        # Recalculate total directly from whatever rows remain in the table
+        total = 0.0
+        for row_id in self.bill_table.get_children():
+            values = self.bill_table.item(row_id, "values")
+            total += float(values[3])
+        self.bill_total_label.config(text=f"Total Bill: Rs. {round(total, 2)}")
+
+    def remove_bill_item(self):
+        selected = self.bill_table.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Pehle bill table se ek item select karein.")
+            return
+        for row_id in selected:
+            self.bill_table.delete(row_id)
+        self.update_bill_total()
+
+    def clear_bill(self):
+        for row in self.bill_table.get_children():
+            self.bill_table.delete(row)
+        self.med_name_var.set("")
+        self.qty_var.set(1)
+        self.price_var.set("")
+        self.update_bill_total()
+
+    def export_bill(self):
+        rows = self.bill_table.get_children()
+        if not rows:
+            messagebox.showwarning("Empty Bill", "Bill mein koi item nahi hai.")
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text File", "*.txt")],
+            initialfile="medicine_bill.txt"
+        )
+        if not filepath:
+            return
+
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write("========================================\n")
+                f.write("        HEALTHCARE SMART CALCULATOR\n")
+                f.write("             Medicine Bill\n")
+                f.write("========================================\n")
+                f.write(f"Date: {date.today()}\n")
+                if self.patient["name"]:
+                    f.write(f"Patient: {self.patient['name']}\n")
+                f.write("----------------------------------------\n")
+                f.write(f"{'Medicine':<30} {'Qty':<5} {'Price':<8} {'Total':<8}\n")
+                f.write("----------------------------------------\n")
+
+                grand_total = 0.0
+                for row_id in rows:
+                    name, qty, price, total = self.bill_table.item(row_id, "values")
+                    f.write(f"{name:<30} {qty:<5} {price:<8} {total:<8}\n")
+                    grand_total += float(total)
+
+                f.write("----------------------------------------\n")
+                f.write(f"Grand Total: Rs. {round(grand_total, 2)}\n")
+                f.write("========================================\n")
+
+            messagebox.showinfo("Exported", f"Bill saved successfully:\n{filepath}")
+
+        except OSError:
+            messagebox.showerror("Error", "File save nahi ho saki. Doosri location try karein.")
+
+
+# =====================================================
+# Program Entry Point
+# =====================================================
+if __name__ == "__main__":
+    app = HealthcareSmartCalculator()
+    app.mainloop()
