@@ -50,17 +50,10 @@
 
 ## 🖼️ Preview
 
-> Add your own screenshots here after running the app locally:
-> `images/patient_tab.png`, `images/bmi_tab.png`, `images/bill_tab.png`
+![Patient](patient.png)
+![BMI](bmi.png)
+![BILL](bill.png)
 
-```
-images/
-├── patient_tab.png
-├── bmi_tab.png
-└── bill_tab.png
-```
-
----
 
 ## 🛠️ Tech Stack
 
